@@ -43,11 +43,8 @@ Usage [optional]:
 #include <vector>
 
 #include <chrono>
-#include <string>
 #include <functional>
 #include <math.h>
-
-#include <memory>
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -55,8 +52,6 @@ Usage [optional]:
 #include "../include/natnet/NatNetTypes.h"
 #include "../include/natnet/NatNetCAPI.h"
 #include "../include/natnet/NatNetClient.h"
-#include <memory>
-#include <string>
 #include <stdexcept>
 using namespace std::chrono_literals;
 // The code snippet below is licensed under CC0 1.0. see https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
@@ -153,16 +148,11 @@ void NATNET_CALLCONV MessageHandler(Verbosity msgType, const char* msg )
 
     
 }
-void NATNET_CALLCONV ServerDiscoveredCallback( const sNatNetDiscoveredServer* pDiscoveredServer, void* pUserContext )
+void NATNET_CALLCONV ServerDiscoveredCallback( const sNatNetDiscoveredServer* pDiscoveredServer, void* )
 {
     rclcpp::Logger logger = node->get_logger();
-    char serverHotkey = '.';
     if ( node->g_discoveredServers.size() < 9 )
-    {char serverHotkey = static_cast<char>('1' + node->g_discoveredServers.size());
-    }
-
     RCLCPP_DEBUG(logger, "[%c] %s %d.%d at %s ",
-        serverHotkey,
         pDiscoveredServer->serverDescription.szHostApp,
         pDiscoveredServer->serverDescription.HostAppVersion[0],
         pDiscoveredServer->serverDescription.HostAppVersion[1],
@@ -261,6 +251,9 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
         // 0x01 : bool, rigid body was successfully tracked in this frame
         bool bTrackingValid = data->RigidBodies[i].params & 0x01;
         u_int32_t ID = data->RigidBodies[i].ID;
+        if (!bTrackingValid){
+            continue;
+        }
         if (node->markernames.find(ID) != node->markernames.end()){
 
         
@@ -588,7 +581,7 @@ void NatNetRosClient::Init(){
             RCLCPP_DEBUG(this->get_logger(), "Looking for servers on the local network.\n" );
 
 
-            NatNetDiscoveryHandle discovery = autoDiscoverServer();
+            autoDiscoverServer();
             this->set_parameter( rclcpp::Parameter("server_address", g_connectParams.serverAddress));
             this->set_parameter( rclcpp::Parameter("local_address", g_connectParams.localAddress));
         }
