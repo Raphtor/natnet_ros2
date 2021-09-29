@@ -24,16 +24,46 @@ include_directories(
   include
 )
 
-find_library(LIBNATNET NAMES NatNet PATHS lib)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# find_library(LIBNATNET NAMES NatNet PATHS lib)
 add_executable(client src/client.cpp)
 ament_target_dependencies(client rclcpp geometry_msgs)
-target_link_libraries(client ${LIBNATNET})
 
 
+add_library(NatNet SHARED IMPORTED)
+
+set_property(TARGET NatNet PROPERTY
+             IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/libNatNet.so")
+      
+target_link_libraries(client NatNet)
 
 install(TARGETS
   client
+  
   DESTINATION lib/${PROJECT_NAME})
+
+
+install(FILES 
+  "${CMAKE_CURRENT_SOURCE_DIR}/lib/libNatNet.so"
+  DESTINATION lib)
+# Install the shared library -- does this need to be this complicated?
+if(WIN32)
+    ament_environment_hooks(env_hook/natnet_library_path.bat)
+    set(ENV_VAR_NAME "PATH")
+    set(ENV_VAR_VALUE "opt\\natnet\\bin")
+else()
+  ament_environment_hooks(env_hook/natnet_library_path.sh)
+  if(APPLE)
+    set(ENV_VAR_NAME "DYLD_LIBRARY_PATH")
+  else()
+    set(ENV_VAR_NAME "LD_LIBRARY_PATH")
+  endif()
+  set(ENV_VAR_VALUE "opt/natnet/lib")
+endif()
+ament_environment_hooks(env_hook/natnet_library_path.dsv.in)
+
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
