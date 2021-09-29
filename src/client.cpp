@@ -560,7 +560,7 @@ void NatNetRosClient::Init(){
         // print version info
         unsigned char ver[4];
         NatNet_GetVersion( ver );
-        RCLCPP_DEBUG(this->get_logger(), "NatNet Sample Client (NatNet ver. %d.%d.%d.%d)\n", ver[0], ver[1], ver[2], ver[3] );
+        RCLCPP_INFO(this->get_logger(), "NatNet ROS Client (NatNet ver. %d.%d.%d.%d)\n", ver[0], ver[1], ver[2], ver[3] );
 
         // Install logging callback using global node
         
@@ -578,8 +578,6 @@ void NatNetRosClient::Init(){
         if ( server_address.empty() && local_address.empty())
         {
             // Do asynchronous server discovery.
-            RCLCPP_DEBUG(this->get_logger(), "Looking for servers on the local network.\n" );
-
 
             autoDiscoverServer();
             this->set_parameter( rclcpp::Parameter("server_address", g_connectParams.serverAddress));
@@ -600,7 +598,7 @@ void NatNetRosClient::Init(){
         iResult = ConnectClient();
         if (iResult != ErrorCode_OK)
         {
-            RCLCPP_DEBUG(this->get_logger(),"Error initializing client. See log for details. Exiting.\n");
+            RCLCPP_ERROR(this->get_logger(),"Error initializing client. See log for details. Exiting.\n");
             
         }
         else
@@ -640,7 +638,7 @@ void NatNetRosClient::Init(){
         g_pClient->SetFrameReceivedCallback( DataHandler, g_pClient );	// this function will receive data from the server
 
         // Ready to receive marker stream!
-        RCLCPP_DEBUG(this->get_logger(),"Client is connected to server and listening for data...\n");
+        RCLCPP_INFO(this->get_logger(),"Client is connected to server at %s and listening for data...\n",g_connectParams.serverAddress);
         timer_ = this->create_wall_timer(500ms, std::bind(&NatNetRosClient::DiscoverRigidBodies, this));
     }
 
@@ -663,7 +661,8 @@ NatNetDiscoveryHandle NatNetRosClient::autoDiscoverServer()
     rclcpp::Duration elapsed = rclcpp::Duration(0,0);
     rclcpp::Time start = this->get_clock()->now();
     rclcpp::Time end;
-    while (1)
+    RCLCPP_INFO(this->get_logger(), "Looking for servers...");
+    while (rclcpp::ok())
     {
         end = this->get_clock()->now();
         elapsed = end - start;
@@ -710,16 +709,19 @@ NatNetDiscoveryHandle NatNetRosClient::autoDiscoverServer()
 
                 break;
             }
+            sleep(0.1);
         }
         else
         {   
             RCLCPP_ERROR(this->get_logger(), "Timed out while trying to discover server");
+            break;
         }
         
-}
-NatNet_FreeAsyncServerDiscovery( discovery );
-return discovery;
-}
+    }
+    NatNet_FreeAsyncServerDiscovery( discovery );
+    return discovery;
+    }
+
 // Establish a NatNet Client connection
 int NatNetRosClient::ConnectClient()
 {
