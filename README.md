@@ -11,6 +11,7 @@ This is a quick and dirty integration of Naturalpoint's NatNet SDK for Optitrack
 1. Clone this repo
     ```
     git clone https://github.com/Raphtor/natnet_ros2.git
+    mkdir natnet_ros2/lib
     ```
 1. Download the NatNetSDK client from [here](https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.0_ubuntu.tar) and copy the library to the proper locations.
     ```
