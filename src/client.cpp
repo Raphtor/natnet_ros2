@@ -1,5 +1,5 @@
 /* 
-Copyright © 2012 NaturalPoint Inc.
+Copyright 2021 The Johns Hopkins University Applied Physics Laboratory
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ limitations under the License. */
 
 client.cpp
 
-A ROS2 natnet client. A large amount of this code was directly copied/modified from the Natnet SampleClient included in the SDK distribution. 
+A ROS2 natnet client. A large amount of this code was directly modified from the Natnet SampleClient included in the SDK distribution. 
 
 */
 #include "../include/natnet/client.h"
