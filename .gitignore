@@ -1,3 +1,5 @@
 .vscode
 build/
 log/
+include/natnet/NatNet*
+lib/libNatNet.so
