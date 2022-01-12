@@ -1,5 +1,5 @@
 /* 
-Copyright © 2012 NaturalPoint Inc.
+Copyright 2021 The Johns Hopkins University Applied Physics Laboratory
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,49 +16,24 @@ limitations under the License. */
 
 /*
 
-SampleClient.cpp
+client.cpp
 
-This program connects to a NatNet server, receives a data stream, and writes that data stream
-to an ascii file.  The purpose is to illustrate using the NatNetClient class.
-
-Usage [optional]:
-
-	SampleClient [ServerIP] [LocalIP] [OutputFilename]
-
-	[ServerIP]			IP address of the server (e.g. 192.168.0.107) ( defaults to local machine)
-	[OutputFilename]	Name of points file (pts) to write out.  defaults to Client-output.pts
+A ROS2 natnet client. A large amount of this code was directly modified from the Natnet SampleClient included in the SDK distribution. 
 
 */
-
-#include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-
-#include <unistd.h>
-#include <termios.h>
-
-
-#include <vector>
-
-#include <chrono>
-#include <string>
-#include <functional>
-#include <math.h>
-
-#include <memory>
-
-#include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "geometry_msgs/msg/pose.hpp"
-#include "../include/natnet/NatNetTypes.h"
-#include "../include/natnet/NatNetCAPI.h"
-#include "../include/natnet/NatNetClient.h"
-#include <memory>
-#include <string>
-#include <stdexcept>
+#include "../include/natnet/client.h"
 using namespace std::chrono_literals;
+
+
+// I hate this, but callbacks need to be function pointers, so this is my temp solution
+// Global pointer to node
+std::shared_ptr<NatNetRosClient> node;
+
+
+
+// GLOBAL METHODS
+
+
 // The code snippet below is licensed under CC0 1.0. see https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
 template<typename ... Args>
 std::string string_format( const std::string& format, Args ... args )
@@ -70,66 +45,18 @@ std::string string_format( const std::string& format, Args ... args )
     std::snprintf( buf.get(), size, format.c_str(), args ... );
     return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
 }
+// Replaces spaces with underscores
+std::string sanitize_spaces(std::string s)
+{
+    std::replace(s.begin(), s.end(), ' ', '_');
+    return s;
+}
+
+
 // End licensed code
 
-typedef geometry_msgs::msg::Pose posemsg_t;
-typedef geometry_msgs::msg::PoseStamped sposemsg_t;
-
-typedef rclcpp::Publisher<posemsg_t>::SharedPtr posepub_t;
-typedef rclcpp::Publisher<sposemsg_t>::SharedPtr sposepub_t;
-
-class NatNetRosClient : public rclcpp::Node
-{
-    public: 
-        NatNetRosClient();
-        
-        virtual ~NatNetRosClient();
-        void Init();
-        void resetClient();
-        int ConnectClient();
-        
-        NatNetDiscoveryHandle autoDiscoverServer();
-        int DiscoverRigidBodies();
-
-        std::map<u_int32_t, posepub_t> publishers_;
-        std::map<u_int32_t, posemsg_t> data_;
-
-        std::map<u_int32_t, sposepub_t> spublishers_;
-        std::map<u_int32_t, sposemsg_t> sdata_;
-
-
-        sServerDescription g_serverDescription;
-        std::map<u_int32_t, std::string> markernames;
-        bool parameter_use_timestamps_;
-        std::string parameter_world_frame_id_;
-        float parameter_timeout_;
-        // void NATNET_CALLCONV ServerDiscoveredCallback( const sNatNetDiscoveredServer* pDiscoveredServer, void* pUserContext );
-        // void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData);    // receives data from the server
-        // void NATNET_CALLCONV MessageHandler(Verbosity msgType, const char* msg);      // receives NatNet error messages
-        
-        
-
-        static const ConnectionType kDefaultConnectionType = ConnectionType_Multicast;
-
-        NatNetClient* g_pClient = NULL;
-        FILE* g_outputFile;
-
-        std::vector< sNatNetDiscoveredServer > g_discoveredServers;
-        sNatNetClientConnectParams g_connectParams;
-        char g_discoveredMulticastGroupAddr[kNatNetIpv4AddrStrLenMax] = NATNET_DEFAULT_MULTICAST_ADDRESS;
-        int g_analogSamplesPerMocapFrame = 0;
-        void set_data(sRigidBodyData);
-        rclcpp::TimerBase::SharedPtr timer_;
-        
-};
-
-// I hate this, but callbacks need to be function pointers, so this is my temp solution
-
-
-// Global pointer to node
-std::shared_ptr<NatNetRosClient> node;
+// Receives NatNet error/debug messages
 void NATNET_CALLCONV MessageHandler(Verbosity msgType, const char* msg )
-// MessageHandler receives NatNet error/debug messages
 {
     rclcpp::Logger logger = node->get_logger();
     switch ( msgType )
@@ -153,16 +80,12 @@ void NATNET_CALLCONV MessageHandler(Verbosity msgType, const char* msg )
 
     
 }
-void NATNET_CALLCONV ServerDiscoveredCallback( const sNatNetDiscoveredServer* pDiscoveredServer, void* pUserContext )
+// Callback for discovering a server
+void NATNET_CALLCONV ServerDiscoveredCallback( const sNatNetDiscoveredServer* pDiscoveredServer, void* )
 {
     rclcpp::Logger logger = node->get_logger();
-    char serverHotkey = '.';
     if ( node->g_discoveredServers.size() < 9 )
-    {char serverHotkey = static_cast<char>('1' + node->g_discoveredServers.size());
-    }
-
     RCLCPP_DEBUG(logger, "[%c] %s %d.%d at %s ",
-        serverHotkey,
         pDiscoveredServer->serverDescription.szHostApp,
         pDiscoveredServer->serverDescription.HostAppVersion[0],
         pDiscoveredServer->serverDescription.HostAppVersion[1],
@@ -179,7 +102,7 @@ void NATNET_CALLCONV ServerDiscoveredCallback( const sNatNetDiscoveredServer* pD
 
     node->g_discoveredServers.push_back( *pDiscoveredServer );
 }
-// DataHandler receives data from the server
+// Receives data from the server
 // This function is called by NatNet when a frame of mocap data is available
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
 {
@@ -201,7 +124,6 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
     // The SecondsSinceHostTimestamp method relies on NatNetClient's internal clock synchronization with the server using Cristian's algorithm.
     const double transitLatencyMillisec = pClient->SecondsSinceHostTimestamp( data->TransmitTimestamp ) * 1000.0;
 
-    
     std::stringstream debug_msg;
     int i=0;
 
@@ -261,6 +183,9 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
         // 0x01 : bool, rigid body was successfully tracked in this frame
         bool bTrackingValid = data->RigidBodies[i].params & 0x01;
         u_int32_t ID = data->RigidBodies[i].ID;
+        if (!bTrackingValid){
+            continue;
+        }
         if (node->markernames.find(ID) != node->markernames.end()){
 
         
@@ -414,8 +339,6 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
     RCLCPP_DEBUG(logger, debug_msg.str());
 }
 
-
-
 NatNetRosClient::NatNetRosClient() : Node("natnet_client")
     {
 
@@ -466,7 +389,7 @@ int NatNetRosClient::DiscoverRigidBodies(){
                 {
                     std::map<uint32_t, sposepub_t>::iterator it = spublishers_.find(ID);
                     if ( spublishers_.end() == it ) { 
-                        std::string topicname = string_format("%s/pose_stamped", pRB->szName);
+                        std::string topicname = sanitize_spaces(string_format("%s/pose_stamped", pRB->szName));
                         spublishers_[ID] = this->create_publisher<sposemsg_t>(topicname, 10);
                     }
                 }
@@ -474,7 +397,7 @@ int NatNetRosClient::DiscoverRigidBodies(){
                 {
                     std::map<uint32_t, posepub_t>::iterator it = publishers_.find(ID);
                     if ( publishers_.end() == it ) { 
-                        std::string topicname = string_format("%s/pose", pRB->szName);
+                        std::string topicname = sanitize_spaces(string_format("%s/pose", pRB->szName));
                         publishers_[ID] = this->create_publisher<posemsg_t>(topicname, 10);
                     }
                 }
@@ -567,7 +490,7 @@ void NatNetRosClient::Init(){
         // print version info
         unsigned char ver[4];
         NatNet_GetVersion( ver );
-        RCLCPP_DEBUG(this->get_logger(), "NatNet Sample Client (NatNet ver. %d.%d.%d.%d)\n", ver[0], ver[1], ver[2], ver[3] );
+        RCLCPP_INFO(this->get_logger(), "NatNet ROS Client (NatNet ver. %d.%d.%d.%d)\n", ver[0], ver[1], ver[2], ver[3] );
 
         // Install logging callback using global node
         
@@ -585,10 +508,8 @@ void NatNetRosClient::Init(){
         if ( server_address.empty() && local_address.empty())
         {
             // Do asynchronous server discovery.
-            RCLCPP_DEBUG(this->get_logger(), "Looking for servers on the local network.\n" );
 
-
-            NatNetDiscoveryHandle discovery = autoDiscoverServer();
+            autoDiscoverServer();
             this->set_parameter( rclcpp::Parameter("server_address", g_connectParams.serverAddress));
             this->set_parameter( rclcpp::Parameter("local_address", g_connectParams.localAddress));
         }
@@ -607,7 +528,7 @@ void NatNetRosClient::Init(){
         iResult = ConnectClient();
         if (iResult != ErrorCode_OK)
         {
-            RCLCPP_DEBUG(this->get_logger(),"Error initializing client. See log for details. Exiting.\n");
+            RCLCPP_ERROR(this->get_logger(),"Error initializing client. See log for details. Exiting.\n");
             
         }
         else
@@ -647,7 +568,7 @@ void NatNetRosClient::Init(){
         g_pClient->SetFrameReceivedCallback( DataHandler, g_pClient );	// this function will receive data from the server
 
         // Ready to receive marker stream!
-        RCLCPP_DEBUG(this->get_logger(),"Client is connected to server and listening for data...\n");
+        RCLCPP_INFO(this->get_logger(),"Client is connected to server at %s and listening for data...\n",g_connectParams.serverAddress);
         timer_ = this->create_wall_timer(500ms, std::bind(&NatNetRosClient::DiscoverRigidBodies, this));
     }
 
@@ -670,7 +591,8 @@ NatNetDiscoveryHandle NatNetRosClient::autoDiscoverServer()
     rclcpp::Duration elapsed = rclcpp::Duration(0,0);
     rclcpp::Time start = this->get_clock()->now();
     rclcpp::Time end;
-    while (1)
+    RCLCPP_INFO(this->get_logger(), "Looking for servers...");
+    while (rclcpp::ok())
     {
         end = this->get_clock()->now();
         elapsed = end - start;
@@ -717,16 +639,19 @@ NatNetDiscoveryHandle NatNetRosClient::autoDiscoverServer()
 
                 break;
             }
+            sleep(0.1);
         }
         else
         {   
             RCLCPP_ERROR(this->get_logger(), "Timed out while trying to discover server");
+            break;
         }
         
-}
-NatNet_FreeAsyncServerDiscovery( discovery );
-return discovery;
-}
+    }
+    NatNet_FreeAsyncServerDiscovery( discovery );
+    return discovery;
+    }
+
 // Establish a NatNet Client connection
 int NatNetRosClient::ConnectClient()
 {
