@@ -1,18 +1,30 @@
 # NatNet package for ROS2
 
-
-This is a quick and dirty integration of Naturalpoint's NatNet SDK for Optitrack and ROS2.
+This is a quick and dirty integration of Naturalpoint's NatNet SDK for Optitrack and ROS2. It has been tested on Ubuntu using ROS2 Foxy, using the NatNet SDK 4.0.0
 
 ## Installation
-
-```
-mkdir -p ~/natnet_ws/src
-cd ~/natnet_ws/src
-git clone https://github.com/Raphtor/natnet_ros2.git
-cd ..
-colcon build --packages-select natnet
-
-```
+1. Make and/or use a ROS2 workspace
+    ```
+    mkdir -p ~/natnet_ws/src
+    cd ~/natnet_ws/src
+    ```
+1. Clone this repo
+    ```
+    git clone https://github.com/Raphtor/natnet_ros2.git
+    mkdir natnet_ros2/lib
+    ```
+1. Download the NatNetSDK client from [here](https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.0_ubuntu.tar) and copy the library to the proper locations.
+    ```
+    wget https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.0_ubuntu.tar
+    tar -xvf NatNet_SDK_4.0_ubuntu.tar
+    cp NatNet_SDK_4.0_ubuntu/lib/libNatNet.so natnet_ros2/lib/ && cp NatNet_SDK_4.0_ubuntu/include/NatNet* natnet_ros2/include/natnet
+    rm -rf NatNet_SDK_4.0_ubuntu*
+    ```
+1. Build the package
+    ```
+    cd ..
+    colcon build --packages-select natnet
+    ```
 
 ## Running
 
