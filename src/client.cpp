@@ -62,16 +62,16 @@ void NATNET_CALLCONV MessageHandler(Verbosity msgType, const char* msg )
     switch ( msgType )
     {
         case Verbosity_Debug:
-            RCLCPP_DEBUG(logger, "%s\n", msg);
+            RCLCPP_DEBUG(logger, "%s", msg);
             break;
         case Verbosity_Info:
-            RCLCPP_INFO(logger, "%s\n", msg);
+            RCLCPP_INFO(logger, "%s", msg);
             break;
         case Verbosity_Warning:
-            RCLCPP_WARN(logger, "%s\n", msg);
+            RCLCPP_WARN(logger, "%s", msg);
             break;
         case Verbosity_Error:
-            RCLCPP_ERROR(logger, "%s\n", msg);
+            RCLCPP_ERROR(logger, "%s", msg);
             break;
         default:
             RCLCPP_ERROR(logger, "???", msg);
@@ -84,28 +84,28 @@ void NATNET_CALLCONV MessageHandler(Verbosity msgType, const char* msg )
 void NATNET_CALLCONV ServerDiscoveredCallback( const sNatNetDiscoveredServer* pDiscoveredServer, void* )
 {
     rclcpp::Logger logger = node->get_logger();
-    if ( node->g_discoveredServers.size() < 9 )
-    RCLCPP_DEBUG(logger, "[%c] %s %d.%d at %s ",
+    std::stringstream debug_msg;
+    if ( node->g_discoveredServers.size() < 9 ) {
+        debug_msg << " " << string_format("Found [%s] at %s ",
         pDiscoveredServer->serverDescription.szHostApp,
-        pDiscoveredServer->serverDescription.HostAppVersion[0],
-        pDiscoveredServer->serverDescription.HostAppVersion[1],
         pDiscoveredServer->serverAddress );
-
+    }
     if ( pDiscoveredServer->serverDescription.bConnectionInfoValid )
     {
-        RCLCPP_DEBUG(logger, "(%s)\n", pDiscoveredServer->serverDescription.ConnectionMulticast ? "multicast" : "unicast" );
+        debug_msg << " " << string_format("(%s)", pDiscoveredServer->serverDescription.ConnectionMulticast ? "multicast" : "unicast" );
     }
     else
     {
-        RCLCPP_DEBUG(logger, "(WARNING: Legacy server, could not autodetect settings. Auto-connect may not work reliably.)\n" );
+        RCLCPP_WARN(logger, "Legacy server, could not autodetect settings. Auto-connect may not work reliably.)" );
     }
-
+    RCLCPP_DEBUG(logger, debug_msg.str());
     node->g_discoveredServers.push_back( *pDiscoveredServer );
 }
 // Receives data from the server
 // This function is called by NatNet when a frame of mocap data is available
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
 {
+    
     rclcpp::Logger logger = node->get_logger();
     rclcpp::Clock clock = *node->get_clock();
     NatNetClient* pClient = (NatNetClient*) pUserData;
@@ -163,9 +163,9 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
     bool bIsRecording = ((data->params & 0x01)!=0);
     bool bTrackedModelsChanged = ((data->params & 0x02)!=0);
     if(bIsRecording)
-        RCLCPP_DEBUG(logger,"RECORDING\n");
+        RCLCPP_DEBUG(logger,"RECORDING");
     if(bTrackedModelsChanged)
-        RCLCPP_DEBUG(logger,"Models Changed.\n");
+        RCLCPP_DEBUG(logger,"Models Changed.");
 
     // timecode - for systems with an eSync and SMPTE timecode generator - decode to values
     int hour, minute, second, frame, subframe;
@@ -218,9 +218,9 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
 
             RCLCPP_WARN_THROTTLE(logger, clock, 1, "Rigidbody %d does not have a publisher: ", ID);
         }
-        // RCLCPP_DEBUG(logger,"Rigid Body [Name=%s, ID=%d  Error=%3.2f  Valid=%d]\n", node->markernames[ID], ID, dat.MeanError, bTrackingValid);
-        // RCLCPP_DEBUG(logger,"\tx\ty\tz\tqx\tqy\tqz\tqw\n");
-        // RCLCPP_DEBUG(logger,"\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\n",
+        // RCLCPP_DEBUG(logger,"Rigid Body [Name=%s, ID=%d  Error=%3.2f  Valid=%d]", node->markernames[ID], ID, dat.MeanError, bTrackingValid);
+        // RCLCPP_DEBUG(logger,"\tx\ty\tz\tqx\tqy\tqz\tqw");
+        // RCLCPP_DEBUG(logger,"\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f",
         //     data->RigidBodies[i].x,
         //     data->RigidBodies[i].y,
         //     data->RigidBodies[i].z,
@@ -302,7 +302,7 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
     //         RCLCPP_DEBUG(logger,"\tChannel %d:\t", iChannel);
     //         if(data->ForcePlates[iPlate].ChannelData[iChannel].nFrames == 0)
     //         {
-    //             RCLCPP_DEBUG(logger,"\tEmpty Frame\n");
+    //             RCLCPP_DEBUG(logger,"\tEmpty Frame");
     //         }
     //         else if(data->ForcePlates[iPlate].ChannelData[iChannel].nFrames != node->g_analogSamplesPerMocapFrame)
     //         {
@@ -310,7 +310,7 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
     //         }
     //         for(int iSample=0; iSample < data->ForcePlates[iPlate].ChannelData[iChannel].nFrames; iSample++)
     //             RCLCPP_DEBUG(logger,"%3.2f\t", data->ForcePlates[iPlate].ChannelData[iChannel].Values[iSample]);
-    //         RCLCPP_DEBUG(logger,"\n");
+    //         RCLCPP_DEBUG(logger,"");
     //     }
     // }
 
@@ -325,7 +325,7 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
     //         RCLCPP_DEBUG(logger,"\tChannel %d:\t", iChannel);
     //         if (data->Devices[iDevice].ChannelData[iChannel].nFrames == 0)
     //         {
-    //             RCLCPP_DEBUG(logger,"\tEmpty Frame\n");
+    //             RCLCPP_DEBUG(logger,"\tEmpty Frame");
     //         }
     //         else if (data->Devices[iDevice].ChannelData[iChannel].nFrames != node->g_analogSamplesPerMocapFrame)
     //         {
@@ -333,10 +333,10 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData)
     //         }
     //         for (int iSample = 0; iSample < data->Devices[iDevice].ChannelData[iChannel].nFrames; iSample++)
     //             RCLCPP_DEBUG(logger,"%3.2f\t", data->Devices[iDevice].ChannelData[iChannel].Values[iSample]);
-    //         RCLCPP_DEBUG(logger,"\n");
+    //         RCLCPP_DEBUG(logger,"");
     //     }
     // }
-    RCLCPP_DEBUG(logger, debug_msg.str());
+    RCLCPP_DEBUG_THROTTLE(logger,clock, 0.1, debug_msg.str());
 }
 
 NatNetRosClient::NatNetRosClient() : Node("natnet_client")
@@ -357,23 +357,23 @@ int NatNetRosClient::DiscoverRigidBodies(){
     int iResult = g_pClient->GetDataDescriptionList(&pDataDefs);
     if (iResult != ErrorCode_OK || pDataDefs == NULL)
     {
-        RCLCPP_ERROR(this->get_logger()," Unable to retrieve Data Descriptions.\n");
+        RCLCPP_ERROR(this->get_logger()," Unable to retrieve Data Descriptions.");
         return 1;
     }
     else
     {
-        RCLCPP_DEBUG(this->get_logger(),"Received %d Data Descriptions:\n", pDataDefs->nDataDescriptions );
+        RCLCPP_DEBUG(this->get_logger(),"Received %d Data Descriptions:", pDataDefs->nDataDescriptions );
         for(int i=0; i < pDataDefs->nDataDescriptions; i++)
         {
-            // RCLCPP_DEBUG(this->get_logger(),"Data Description # %d (type=%d)\n", i, pDataDefs->arrDataDescriptions[i].type);
+            // RCLCPP_DEBUG(this->get_logger(),"Data Description # %d (type=%d)", i, pDataDefs->arrDataDescriptions[i].type);
             if(pDataDefs->arrDataDescriptions[i].type == Descriptor_MarkerSet)
             {
                 // TODO do something with this
                 // // MarkerSet
                 // sMarkerSetDescription* pMS = pDataDefs->arrDataDescriptions[i].Data.MarkerSetDescription;
-                // RCLCPP_DEBUG(this->get_logger(),"MarkerSet Name : %s\n", pMS->szName);
+                // RCLCPP_DEBUG(this->get_logger(),"MarkerSet Name : %s", pMS->szName);
                 // for(int i=0; i < pMS->nMarkers; i++)
-                //     RCLCPP_DEBUG(this->get_logger(),"%s\n", pMS->szMarkerNames[i]);
+                //     RCLCPP_DEBUG(this->get_logger(),"%s", pMS->szMarkerNames[i]);
 
             }
             else if(pDataDefs->arrDataDescriptions[i].type == Descriptor_RigidBody)
@@ -384,101 +384,111 @@ int NatNetRosClient::DiscoverRigidBodies(){
                 // RigidBody
                 sRigidBodyDescription* pRB = pDataDefs->arrDataDescriptions[i].Data.RigidBodyDescription;
                 int32_t ID = pRB->ID;
+                bool newRB = false;
                 markernames[ID]= pRB->szName;
                 if (parameter_use_timestamps_)
                 {
+                    // Find existing publishers
                     std::map<uint32_t, sposepub_t>::iterator it = spublishers_.find(ID);
+                    // If not found, add it
                     if ( spublishers_.end() == it ) { 
                         std::string topicname = sanitize_spaces(string_format("%s/pose_stamped", pRB->szName));
                         spublishers_[ID] = this->create_publisher<sposemsg_t>(topicname, 10);
+                        newRB = true;
                     }
                 }
                 else
                 {
+                    // Find existing publishers
                     std::map<uint32_t, posepub_t>::iterator it = publishers_.find(ID);
+                    // If not found, add it
                     if ( publishers_.end() == it ) { 
                         std::string topicname = sanitize_spaces(string_format("%s/pose", pRB->szName));
                         publishers_[ID] = this->create_publisher<posemsg_t>(topicname, 10);
+                        newRB = true;
                     }
                 }
-                
-                RCLCPP_DEBUG(this->get_logger(),"RigidBody Name : %s\n", pRB->szName);
-                RCLCPP_DEBUG(this->get_logger(),"RigidBody ID : %d\n", pRB->ID);
-                RCLCPP_DEBUG(this->get_logger(),"RigidBody Parent ID : %d\n", pRB->parentID);
-                RCLCPP_DEBUG(this->get_logger(),"Parent Offset : %3.2f,%3.2f,%3.2f\n", pRB->offsetx, pRB->offsety, pRB->offsetz);
-
-                if ( pRB->MarkerPositions != NULL && pRB->MarkerRequiredLabels != NULL )
-                {
-                    for ( int markerIdx = 0; markerIdx < pRB->nMarkers; ++markerIdx )
+                if(newRB){
+                    RCLCPP_DEBUG(this->get_logger(),"RigidBody Name : %s", pRB->szName);
+                    RCLCPP_DEBUG(this->get_logger(),"RigidBody ID : %d", pRB->ID);
+                    RCLCPP_DEBUG(this->get_logger(),"RigidBody Parent ID : %d", pRB->parentID);
+                    RCLCPP_DEBUG(this->get_logger(),"Parent Offset : %3.2f,%3.2f,%3.2f", pRB->offsetx, pRB->offsety, pRB->offsetz);
+                    if ( pRB->MarkerPositions != NULL && pRB->MarkerRequiredLabels != NULL )
                     {
-                        const MarkerData& markerPosition = pRB->MarkerPositions[markerIdx];
-                        const int markerRequiredLabel = pRB->MarkerRequiredLabels[markerIdx];
-
-                        RCLCPP_DEBUG(this->get_logger(), "\tMarker #%d:\n", markerIdx );
-                        RCLCPP_DEBUG(this->get_logger(), "\t\tPosition: %.2f, %.2f, %.2f\n", markerPosition[0], markerPosition[1], markerPosition[2] );
-
-                        if ( markerRequiredLabel != 0 )
+                        for ( int markerIdx = 0; markerIdx < pRB->nMarkers; ++markerIdx )
                         {
-                            RCLCPP_DEBUG(this->get_logger(), "\t\tRequired active label: %d\n", markerRequiredLabel );
+                            const MarkerData& markerPosition = pRB->MarkerPositions[markerIdx];
+                            const int markerRequiredLabel = pRB->MarkerRequiredLabels[markerIdx];
+
+                            RCLCPP_DEBUG(this->get_logger(), "\tMarker #%d:", markerIdx );
+                            RCLCPP_DEBUG(this->get_logger(), "\t\tPosition: %.2f, %.2f, %.2f", markerPosition[0], markerPosition[1], markerPosition[2] );
+
+                            if ( markerRequiredLabel != 0 )
+                            {
+                                RCLCPP_DEBUG(this->get_logger(), "\t\tRequired active label: %d", markerRequiredLabel );
+                            }
                         }
                     }
                 }
+                
+
+                
             }
             else if(pDataDefs->arrDataDescriptions[i].type == Descriptor_Skeleton)
             {
                 // Skeleton
                 sSkeletonDescription* pSK = pDataDefs->arrDataDescriptions[i].Data.SkeletonDescription;
-                RCLCPP_DEBUG(this->get_logger(),"Skeleton Name : %s\n", pSK->szName);
-                RCLCPP_DEBUG(this->get_logger(),"Skeleton ID : %d\n", pSK->skeletonID);
-                RCLCPP_DEBUG(this->get_logger(),"RigidBody (Bone) Count : %d\n", pSK->nRigidBodies);
+                RCLCPP_DEBUG(this->get_logger(),"Skeleton Name : %s", pSK->szName);
+                RCLCPP_DEBUG(this->get_logger(),"Skeleton ID : %d", pSK->skeletonID);
+                RCLCPP_DEBUG(this->get_logger(),"RigidBody (Bone) Count : %d", pSK->nRigidBodies);
                 for(int j=0; j < pSK->nRigidBodies; j++)
                 {
                     sRigidBodyDescription* pRB = &pSK->RigidBodies[j];
-                    RCLCPP_DEBUG(this->get_logger(),"  RigidBody Name : %s\n", pRB->szName);
-                    RCLCPP_DEBUG(this->get_logger(),"  RigidBody ID : %d\n", pRB->ID);
-                    RCLCPP_DEBUG(this->get_logger(),"  RigidBody Parent ID : %d\n", pRB->parentID);
-                    RCLCPP_DEBUG(this->get_logger(),"  Parent Offset : %3.2f,%3.2f,%3.2f\n", pRB->offsetx, pRB->offsety, pRB->offsetz);
+                    RCLCPP_DEBUG(this->get_logger(),"  RigidBody Name : %s", pRB->szName);
+                    RCLCPP_DEBUG(this->get_logger(),"  RigidBody ID : %d", pRB->ID);
+                    RCLCPP_DEBUG(this->get_logger(),"  RigidBody Parent ID : %d", pRB->parentID);
+                    RCLCPP_DEBUG(this->get_logger(),"  Parent Offset : %3.2f,%3.2f,%3.2f", pRB->offsetx, pRB->offsety, pRB->offsetz);
                 }
             }
             else if(pDataDefs->arrDataDescriptions[i].type == Descriptor_ForcePlate)
             {
                 // Force Plate
                 sForcePlateDescription* pFP = pDataDefs->arrDataDescriptions[i].Data.ForcePlateDescription;
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate ID : %d\n", pFP->ID);
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate Serial : %s\n", pFP->strSerialNo);
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate Width : %3.2f\n", pFP->fWidth);
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate Length : %3.2f\n", pFP->fLength);
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate Electrical Center Offset (%3.3f, %3.3f, %3.3f)\n", pFP->fOriginX,pFP->fOriginY, pFP->fOriginZ);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate ID : %d", pFP->ID);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate Serial : %s", pFP->strSerialNo);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate Width : %3.2f", pFP->fWidth);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate Length : %3.2f", pFP->fLength);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate Electrical Center Offset (%3.3f, %3.3f, %3.3f)", pFP->fOriginX,pFP->fOriginY, pFP->fOriginZ);
                 for(int iCorner=0; iCorner<4; iCorner++)
-                    RCLCPP_DEBUG(this->get_logger(),"Force Plate Corner %d : (%3.4f, %3.4f, %3.4f)\n", iCorner, pFP->fCorners[iCorner][0],pFP->fCorners[iCorner][1],pFP->fCorners[iCorner][2]);
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate Type : %d\n", pFP->iPlateType);
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate Data Type : %d\n", pFP->iChannelDataType);
-                RCLCPP_DEBUG(this->get_logger(),"Force Plate Channel Count : %d\n", pFP->nChannels);
+                    RCLCPP_DEBUG(this->get_logger(),"Force Plate Corner %d : (%3.4f, %3.4f, %3.4f)", iCorner, pFP->fCorners[iCorner][0],pFP->fCorners[iCorner][1],pFP->fCorners[iCorner][2]);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate Type : %d", pFP->iPlateType);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate Data Type : %d", pFP->iChannelDataType);
+                RCLCPP_DEBUG(this->get_logger(),"Force Plate Channel Count : %d", pFP->nChannels);
                 for(int iChannel=0; iChannel<pFP->nChannels; iChannel++)
-                    RCLCPP_DEBUG(this->get_logger(),"\tChannel %d : %s\n", iChannel, pFP->szChannelNames[iChannel]);
+                    RCLCPP_DEBUG(this->get_logger(),"\tChannel %d : %s", iChannel, pFP->szChannelNames[iChannel]);
             }
             else if (pDataDefs->arrDataDescriptions[i].type == Descriptor_Device)
             {
                 // Peripheral Device
                 sDeviceDescription* pDevice = pDataDefs->arrDataDescriptions[i].Data.DeviceDescription;
-                RCLCPP_DEBUG(this->get_logger(),"Device Name : %s\n", pDevice->strName);
-                RCLCPP_DEBUG(this->get_logger(),"Device Serial : %s\n", pDevice->strSerialNo);
-                RCLCPP_DEBUG(this->get_logger(),"Device ID : %d\n", pDevice->ID);
-                RCLCPP_DEBUG(this->get_logger(),"Device Channel Count : %d\n", pDevice->nChannels);
+                RCLCPP_DEBUG(this->get_logger(),"Device Name : %s", pDevice->strName);
+                RCLCPP_DEBUG(this->get_logger(),"Device Serial : %s", pDevice->strSerialNo);
+                RCLCPP_DEBUG(this->get_logger(),"Device ID : %d", pDevice->ID);
+                RCLCPP_DEBUG(this->get_logger(),"Device Channel Count : %d", pDevice->nChannels);
                 for (int iChannel = 0; iChannel < pDevice->nChannels; iChannel++)
-                    RCLCPP_DEBUG(this->get_logger(),"\tChannel %d : %s\n", iChannel, pDevice->szChannelNames[iChannel]);
+                    RCLCPP_DEBUG(this->get_logger(),"\tChannel %d : %s", iChannel, pDevice->szChannelNames[iChannel]);
             }
             else if (pDataDefs->arrDataDescriptions[i].type == Descriptor_Camera)
             {
                 // Camera
-                sCameraDescription* pCamera = pDataDefs->arrDataDescriptions[i].Data.CameraDescription;
-                RCLCPP_DEBUG(this->get_logger(),"Camera Name : %s\n", pCamera->strName);
-                RCLCPP_DEBUG(this->get_logger(),"Camera Position (%3.2f, %3.2f, %3.2f)\n", pCamera->x, pCamera->y, pCamera->z);
-                RCLCPP_DEBUG(this->get_logger(),"Camera Orientation (%3.2f, %3.2f, %3.2f, %3.2f)\n", pCamera->qx, pCamera->qy, pCamera->qz, pCamera->qw);
+                // sCameraDescription* pCamera = pDataDefs->arrDataDescriptions[i].Data.CameraDescription;
+                // RCLCPP_DEBUG(this->get_logger(),"Camera Name : %s", pCamera->strName);
+                // RCLCPP_DEBUG(this->get_logger(),"Camera Position (%3.2f, %3.2f, %3.2f)", pCamera->x, pCamera->y, pCamera->z);
+                // RCLCPP_DEBUG(this->get_logger(),"Camera Orientation (%3.2f, %3.2f, %3.2f, %3.2f)", pCamera->qx, pCamera->qy, pCamera->qz, pCamera->qw);
             }
             else
             {
-                RCLCPP_DEBUG(this->get_logger(),"Unknown data type.\n");
+                RCLCPP_DEBUG(this->get_logger(),"Unknown data type.");
                 // Unknown
             }
         }
@@ -490,7 +500,7 @@ void NatNetRosClient::Init(){
         // print version info
         unsigned char ver[4];
         NatNet_GetVersion( ver );
-        RCLCPP_INFO(this->get_logger(), "NatNet ROS Client (NatNet ver. %d.%d.%d.%d)\n", ver[0], ver[1], ver[2], ver[3] );
+        RCLCPP_INFO(this->get_logger(), "NatNet ROS Client (NatNet ver. %d.%d.%d.%d)", ver[0], ver[1], ver[2], ver[3] );
 
         // Install logging callback using global node
         
@@ -528,27 +538,17 @@ void NatNetRosClient::Init(){
         iResult = ConnectClient();
         if (iResult != ErrorCode_OK)
         {
-            RCLCPP_ERROR(this->get_logger(),"Error initializing client. See log for details. Exiting.\n");
+            RCLCPP_ERROR(this->get_logger(),"Error initializing client. See log for details. Exiting.");
             
         }
         else
         {
-            RCLCPP_DEBUG(this->get_logger(),"Client initialized and ready.\n");
+            RCLCPP_INFO(this->get_logger(),"Client initialized and ready.");
         }
-
-
-        // Send/receive test request
-        void* response;
-        int nBytes;
-        RCLCPP_DEBUG(this->get_logger()," Sending Test Request\n");
-        iResult = g_pClient->SendMessageAndWait("TestRequest", &response, &nBytes);
-        if (iResult == ErrorCode_OK)
-        {
-            RCLCPP_DEBUG(this->get_logger()," Received: %s\n", (char*)response);
-        }
+        
 
         // Retrieve Data Descriptions from Motive
-        RCLCPP_DEBUG(this->get_logger(),"Requesting Data Descriptions...\n");
+        RCLCPP_DEBUG(this->get_logger(),"Requesting Data Descriptions...");
         iResult = DiscoverRigidBodies();
         if (iResult != ErrorCode_OK)
         {
@@ -565,10 +565,13 @@ void NatNetRosClient::Init(){
         // Start handling messages after everything is done
         NatNet_SetLogCallback(MessageHandler);
         // set the frame callback handler after initialization has been done.
-        g_pClient->SetFrameReceivedCallback( DataHandler, g_pClient );	// this function will receive data from the server
-
+        iResult = g_pClient->SetFrameReceivedCallback( DataHandler, g_pClient );	// this function will receive data from the server
+        if (iResult != ErrorCode_OK)
+        {
+            RCLCPP_ERROR(this->get_logger(),"Failed to set callback");
+        }
         // Ready to receive marker stream!
-        RCLCPP_INFO(this->get_logger(),"Client is connected to server at %s and listening for data...\n",g_connectParams.serverAddress);
+        RCLCPP_INFO(this->get_logger(),"Client is connected to server at %s and listening for data...",g_connectParams.serverAddress);
         timer_ = this->create_wall_timer(500ms, std::bind(&NatNetRosClient::DiscoverRigidBodies, this));
     }
 
@@ -591,9 +594,10 @@ NatNetDiscoveryHandle NatNetRosClient::autoDiscoverServer()
     rclcpp::Duration elapsed = rclcpp::Duration(0,0);
     rclcpp::Time start = this->get_clock()->now();
     rclcpp::Time end;
-    RCLCPP_INFO(this->get_logger(), "Looking for servers...");
+    RCLCPP_DEBUG(this->get_logger(), "Looking for servers...");
     while (rclcpp::ok())
     {
+        
         end = this->get_clock()->now();
         elapsed = end - start;
         if ( elapsed.seconds() < parameter_timeout_)
@@ -627,6 +631,7 @@ NatNetDiscoveryHandle NatNetRosClient::autoDiscoverServer()
                 }
                 else
                 {
+                    RCLCPP_WARN_ONCE(this->get_logger(),"Found legacy server");
                     // We're missing some info because it's a legacy server.
                     // Guess the defaults and make a best effort attempt to connect.
                     g_connectParams.connectionType = kDefaultConnectionType;
@@ -657,12 +662,12 @@ int NatNetRosClient::ConnectClient()
 {
     // Release previous server
     g_pClient->Disconnect();
-
+    std::stringstream debug_msg;
     // Init Client and connect to NatNet server
     int retCode = g_pClient->Connect( g_connectParams );
     if (retCode != ErrorCode_OK)
     {
-        RCLCPP_DEBUG(this->get_logger(),"Unable to connect to server.  Error code: %d. Exiting.\n", retCode);
+        RCLCPP_ERROR(this->get_logger(),"Unable to connect to server.  Error code: %d. Exiting.", retCode);
         return ErrorCode_Internal;
     }
     else
@@ -678,39 +683,40 @@ int NatNetRosClient::ConnectClient()
         ret = g_pClient->GetServerDescription( &g_serverDescription );
         if ( ret != ErrorCode_OK || ! g_serverDescription.HostPresent )
         {
-            RCLCPP_DEBUG(this->get_logger(),"Unable to connect to server. Host not present. Exiting.\n");
+            RCLCPP_ERROR(this->get_logger(),"Unable to connect to server. Host not present. Exiting.");
             return 1;
         }
-        RCLCPP_DEBUG(this->get_logger(),"\n[SampleClient] Server application info:\n");
-        RCLCPP_DEBUG(this->get_logger(),"Application: %s (ver. %d.%d.%d.%d)\n", g_serverDescription.szHostApp, g_serverDescription.HostAppVersion[0],
+        
+        debug_msg << " " << "Server application info:";
+        debug_msg << " " << string_format("\n\t Application: %s (ver. %d.%d.%d.%d)", g_serverDescription.szHostApp, g_serverDescription.HostAppVersion[0],
             g_serverDescription.HostAppVersion[1], g_serverDescription.HostAppVersion[2], g_serverDescription.HostAppVersion[3]);
-        RCLCPP_DEBUG(this->get_logger(),"NatNet Version: %d.%d.%d.%d\n", g_serverDescription.NatNetVersion[0], g_serverDescription.NatNetVersion[1],
+        debug_msg << " " << string_format("\n\t NatNet Version: %d.%d.%d.%d", g_serverDescription.NatNetVersion[0], g_serverDescription.NatNetVersion[1],
             g_serverDescription.NatNetVersion[2], g_serverDescription.NatNetVersion[3]);
-        RCLCPP_DEBUG(this->get_logger(),"Client IP:%s\n", g_connectParams.localAddress );
-        RCLCPP_DEBUG(this->get_logger(),"Server IP:%s\n", g_connectParams.serverAddress );
-        RCLCPP_DEBUG(this->get_logger(),"Server Name:%s\n", g_serverDescription.szHostComputerName);
+        debug_msg << " " << string_format("\n\t Client IP:%s", g_connectParams.localAddress );
+        debug_msg << " " << string_format("\n\t Server IP:%s", g_connectParams.serverAddress );
+        debug_msg << " " << string_format("\n\t Server Name:%s", g_serverDescription.szHostComputerName);
 
         // get mocap frame rate
         ret = g_pClient->SendMessageAndWait("FrameRate", &pResult, &nBytes);
         if (ret == ErrorCode_OK)
         {
             float fRate = *((float*)pResult);
-            RCLCPP_DEBUG(this->get_logger(),"Mocap Framerate : %3.2f\n", fRate);
+            debug_msg << " " << string_format("\n\t Mocap Framerate : %3.2f", fRate);
         }
         else
-            RCLCPP_DEBUG(this->get_logger(),"Error getting frame rate.\n");
+            RCLCPP_ERROR(this->get_logger(),"Error getting frame rate.");
 
         // get # of analog samples per mocap frame of data
         ret = g_pClient->SendMessageAndWait("AnalogSamplesPerMocapFrame", &pResult, &nBytes);
         if (ret == ErrorCode_OK)
         {
             g_analogSamplesPerMocapFrame = *((int*)pResult);
-            RCLCPP_DEBUG(this->get_logger(),"Analog Samples Per Mocap Frame : %d\n", g_analogSamplesPerMocapFrame);
+            debug_msg << " " << string_format("\n\t Analog Samples Per Mocap Frame : %d", g_analogSamplesPerMocapFrame);
         }
         else
-            RCLCPP_DEBUG(this->get_logger(),"Error getting Analog frame rate.\n");
+            RCLCPP_ERROR(this->get_logger(),"Error getting Analog frame rate.");
     }
-
+    RCLCPP_INFO(this->get_logger(), debug_msg.str());
     return ErrorCode_OK;
 }
 
@@ -722,11 +728,11 @@ void NatNetRosClient::resetClient()
 
         iSuccess = g_pClient->Disconnect();
         if(iSuccess != 0)
-            RCLCPP_DEBUG(this->get_logger(),"error un-initting Client\n");
+            RCLCPP_DEBUG(this->get_logger(),"error un-initting Client");
 
         iSuccess = g_pClient->Connect( g_connectParams );
         if(iSuccess != 0)
-            RCLCPP_DEBUG(this->get_logger(),"error re-initting Client\n");
+            RCLCPP_DEBUG(this->get_logger(),"error re-initting Client");
     }
 
 
